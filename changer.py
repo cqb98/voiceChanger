@@ -3,8 +3,10 @@ import time
 import queue
 from matplotlib import pyplot as plt
 from matplotlib import animation
+import math
 
 endFlag=0
+putFlag=0
 WIDTH = 2
 CHANNELS = 1
 RATE = 44100
@@ -13,13 +15,11 @@ p = pyaudio.PyAudio()
 q=queue.Queue()
 
 import struct
-import cfft
 
-import cfft
+import FFT
 def changer(wave,level,wide,move,deltas=[]):
 	length=1<<level;
-	F=cfft.toComplex(cfft.fft(cfft.toComplex_c(wave),power));
-	#print(F)
+	F=FFT.FFT(wave,level);
 	pf=[0+0j]*length
 
 	flen=length//2
@@ -31,6 +31,7 @@ def changer(wave,level,wide,move,deltas=[]):
 			pf[i]=F[i+modifyRange];
 	else:
 		for i in range(flen-modifyRange):
+	
 			pf[i+modifyRange]=F[i];
 	for delta in deltas:
 		delta=list(delta)
@@ -44,16 +45,20 @@ def changer(wave,level,wide,move,deltas=[]):
 	for i in range(1,flen):
 		pf[length-i]=pf[i].conjugate();
 	pf[0]=pf[flen]=0+0j;
-	q.put([F,pf])
-	f=cfft.toComplex(cfft.ifft(cfft.toComplex_c(pf),power));
+	if(putFlag):
+		print('put')
+		q.put([F,pf])
+	f=FFT.iFFT(pf,level);
 	#print("f=",f)
-	wave=list(map(lambda x: x.real ,f));
+	#wave=list(map(math.real ,f));
+	wave=list(map(lambda x:x.real,f))
 	return wave;
 
 def callback(in_data, frame_count, time_info, status):
 	wave=[]
 	for i in range(0,len(in_data),4):
 		wave.append(struct.unpack('<f',in_data[i:i+4])[0])
+	print("max(wave)==",max(wave));
 	#F=   cfft.toComplex(cfft.fft(cfft.toComplex_c(wave),power));
 	#wave=changer(wave,power,0.8,0.002,[[0.005,0.3,1,0.7]])
 	wave=changer(wave,power,1.6,0.002,[[0.002,0.3,0.8,1.6]])
@@ -84,6 +89,7 @@ def ani(i):
 if __name__=='__main__':
 	power=10
 	CHUNK=1<<power
+	putFlag=1
 
 	ymax=8e-3
 	fig=plt.figure()
